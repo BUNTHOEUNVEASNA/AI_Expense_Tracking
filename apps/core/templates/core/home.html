@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome - AI Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row min-vh-100 align-items-center">
+        <div class="col-lg-6">
+            <h1 class="display-3 fw-bold mb-4">
+                Track Your Expenses with <span class="text-primary">AI</span>
+            </h1>
+            <p class="lead mb-4">
+                Smart expense tracking powered by artificial intelligence. 
+                Upload receipts, use voice commands, or simply type naturally.
+            </p>
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{% url 'users:register' %}" class="btn btn-primary btn-lg px-4">
+                    Get Started Free
+                </a>
+                <a href="{% url 'users:login' %}" class="btn btn-outline-primary btn-lg px-4">
+                    Login
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-6 text-center">
+            <i class="fas fa-wallet fa-10x text-primary"></i>
+        </div>
+    </div>
+    
+    <!-- Features Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center mb-5">
+            <h2 class="display-5 fw-bold">Features</h2>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-camera fa-3x text-primary mb-3"></i>
+                <h4>Receipt Scanning</h4>
+                <p>Upload receipt photos and AI extracts all the details automatically.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-microphone fa-3x text-primary mb-3"></i>
+                <h4>Voice Input</h4>
+                <p>Just say "I spent $50 on groceries" and it's tracked.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                <h4>Smart Insights</h4>
+                <p>AI analyzes your spending patterns and gives you insights.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                <h4>Auto-Categorization</h4>
+                <p>AI automatically categorizes your expenses for you.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-coins fa-3x text-primary mb-3"></i>
+                <h4>Budget Tracking</h4>
+                <p>Set budgets and get alerts when you're close to limits.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="text-center">
+                <i class="fas fa-file-export fa-3x text-primary mb-3"></i>
+                <h4>Export Reports</h4>
+                <p>Export your data to CSV or PDF for tax purposes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

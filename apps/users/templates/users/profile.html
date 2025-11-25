@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-user"></i> My Profile</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Profile Picture Preview -->
+                        <div class="text-center mb-4">
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" 
+                                     alt="Profile Picture" 
+                                     class="rounded-circle shadow" 
+                                     style="width: 150px; height: 150px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 150px; height: 150px;">
+                                    <i class="fas fa-user fa-4x text-white"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Full Name -->
+                        <div class="mb-3">
+                            <label for="{{ profile_form.full_name.id_for_label }}" class="form-label">
+                                <i class="fas fa-user"></i> Full Name
+                            </label>
+                            {{ profile_form.full_name }}
+                            {% if profile_form.full_name.errors %}
+                                <div class="text-danger small">{{ profile_form.full_name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label for="{{ profile_form.email.id_for_label }}" class="form-label">
+                                <i class="fas fa-envelope"></i> Email Address
+                            </label>
+                            {{ profile_form.email }}
+                            {% if profile_form.email.errors %}
+                                <div class="text-danger small">{{ profile_form.email.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Profile Picture Upload -->
+                        <div class="mb-3">
+                            <label for="{{ profile_form.profile_picture.id_for_label }}" class="form-label">
+                                <i class="fas fa-camera"></i> Profile Picture
+                            </label>
+                            {{ profile_form.profile_picture }}
+                            {% if profile_form.profile_picture.errors %}
+                                <div class="text-danger small">{{ profile_form.profile_picture.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Account Info -->
+                        <div class="alert alert-info">
+                            <strong>Account Information:</strong><br>
+                            Username: <strong>{{ user.username }}</strong><br>
+                            Member since: <strong>{{ user.created_at|date:"F d, Y" }}</strong><br>
+                            Last login: <strong>{{ user.last_login|date:"F d, Y H:i" }}</strong>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Profile
+                            </button>
+                            <a href="{% url 'users:preferences' %}" class="btn btn-secondary">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

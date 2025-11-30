@@ -4,40 +4,54 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8 col-lg-7">
             
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-pills nav-fill mb-3 gap-2">
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:create' %}"><i class="fas fa-keyboard"></i> Manual</a></li>
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:receipt_upload' %}"><i class="fas fa-camera"></i> Receipt AI</a></li>
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:voice_input' %}"><i class="fas fa-microphone"></i> Voice</a></li>
-                <li class="nav-item"><a class="nav-link active" href="#"><i class="fas fa-magic"></i> AI Text</a></li>
+            <ul class="nav nav-pills nav-fill mb-4 gap-2 shadow-sm p-1 bg-white rounded-pill">
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:create' %}"><i class="fas fa-keyboard"></i> Manual</a>
+                </li>
+                {% if user.preferences.ai_suggestions_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:receipt_upload' %}"><i class="fas fa-camera"></i> Receipt</a>
+                </li>
+                {% endif %}
+                
+                {% if user.preferences.voice_input_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:voice_input' %}"><i class="fas fa-microphone"></i> Voice</a>
+                </li>
+                {% endif %}
+
+                <li class="nav-item">
+                    <a class="nav-link active rounded-pill" href="#"><i class="fas fa-magic"></i> AI Text</a>
+                </li>
             </ul>
 
-            <div class="card shadow">
+            <div class="card shadow-lg border-0 rounded-3">
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
-                        <i class="fas fa-pen-fancy text-info fa-4x mb-3"></i>
+                        <div class="bg-light d-inline-block p-3 rounded-circle mb-3">
+                            <i class="fas fa-pen-fancy text-primary fa-3x"></i>
+                        </div>
                         <h4>AI Quick Add</h4>
-                        <p class="text-muted">Type naturally, and we'll fill the form.</p>
+                        <p class="text-muted">Type naturally, and we'll fill the details.</p>
                     </div>
 
-                    <div class="alert alert-info small">
-                        <strong>Examples:</strong><br>
-                        • "Lunch 12.50 at Burger King"<br>
-                        • "Uber to airport $45"<br>
-                        • "Groceries 100 Walmart credit card"
+                    <div class="alert alert-info border-0 bg-info-subtle text-info-emphasis small mb-4">
+                        <strong>Try typing:</strong><br>
+                        "Lunch 12.50 at Burger King"<br>
+                        "Uber to airport $45"<br>
+                        "Groceries 100 Walmart credit card"
                     </div>
 
                     <form method="post">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">What did you spend?</label>
-                            <textarea name="raw_text" class="form-control form-control-lg" rows="3" placeholder="e.g. Coffee $5"></textarea>
+                        <div class="mb-4">
+                            <textarea name="raw_text" class="form-control form-control-lg bg-light border-0" rows="3" placeholder="e.g. Coffee $5..." required></textarea>
                         </div>
 
-                        <button type="submit" class="btn btn-info text-white w-100 py-2">
-                            <i class="fas fa-bolt"></i> Parse & Add
+                        <button type="submit" class="btn btn-primary text-white w-100 py-3 rounded-pill shadow-sm fw-bold">
+                            <i class="fas fa-bolt"></i> Parse & Save
                         </button>
                     </form>
                 </div>

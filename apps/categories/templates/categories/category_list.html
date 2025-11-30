@@ -1,17 +1,64 @@
 {% extends 'base.html' %}
-{% block title %}Categories{% endblock %}
+
+{% block title %}Categories - Expense Tracker{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <h2>Categories</h2>
-    <ul class="list-group mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-tags text-primary"></i> Categories</h2>
+        <a href="{% url 'categories:create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Category
+        </a>
+    </div>
+
+    <div class="row">
         {% for category in categories %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>{{ category.icon }} {{ category.category_name }}</span>
-                <span class="badge" style="background-color: {{ category.color }};">Color</span>
-            </li>
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card shadow-sm h-100 border-start border-5" style="border-left-color: {{ category.color }} !important;">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="badge rounded-pill p-3 fs-4 mb-3" style="background-color: {{ category.color }}20; color: {{ category.color }};">
+                                {{ category.icon }}
+                            </span>
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'categories:update' category.pk %}">
+                                            <i class="fas fa-edit text-warning me-2"></i> Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" href="{% url 'categories:delete' category.pk %}">
+                                            <i class="fas fa-trash-alt me-2"></i> Delete
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <h5 class="card-title fw-bold">{{ category.category_name }}</h5>
+                    </div>
+                    
+                    <div class="mt-2 text-muted small">
+                        {% if category.is_default %}
+                            <i class="fas fa-lock"></i> Default
+                        {% else %}
+                            <i class="fas fa-user"></i> Custom
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
         {% empty %}
-            <li class="list-group-item">No categories found.</li>
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No categories found.</p>
+        </div>
         {% endfor %}
-    </ul>
+    </div>
 </div>
 {% endblock %}

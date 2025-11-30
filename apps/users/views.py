@@ -19,7 +19,6 @@ def register_view(request):
             user.email = form.cleaned_data['email'].lower()
             user.save()
             
-            # Log the user in
             login(request, user)
             
             messages.success(request, 'Welcome! Your account has been created successfully.')
@@ -43,14 +42,12 @@ def login_view(request):
             email = form.cleaned_data.get('username')  # It's called username but we use email
             password = form.cleaned_data.get('password')
             
-            # Authenticate user
             user = authenticate(request, username=email, password=password)
             
             if user is not None:
                 login(request, user)
                 messages.success(request, f'Welcome back, {user.full_name}!')
                 
-                # Redirect to next page or dashboard
                 next_url = request.GET.get('next')
                 if next_url:
                     return redirect(next_url)

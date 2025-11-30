@@ -2,6 +2,7 @@ import re
 import json
 from datetime import timedelta
 from decimal import Decimal
+from apps.core.currency_rates import convert_amount
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -119,16 +120,42 @@ def expense_detail(request, pk):
 
 @login_required
 def expense_update(request, pk):
+    """
+    Update expense with Auto-Currency Conversion.
+    If editing a USD expense while in KHR mode, convert the amount 
+    so the user sees the correct value for their current setting.
+    """
     expense = get_object_or_404(Expense, pk=pk, user=request.user)
+    
+    user_currency = request.user.preferences.currency if hasattr(request.user, 'preferences') else 'USD'
+    
     if request.method == 'POST':
         form = ExpenseForm(request.POST, instance=expense)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            obj.currency = user_currency 
+            obj.save()
+            
             messages.success(request, 'Expense updated successfully!')
             return redirect('expenses:list')
     else:
-        form = ExpenseForm(instance=expense)
-    return render(request, 'expenses/expense_form.html', {'form': form, 'title': 'Edit Expense'})
+
+        initial_data = {}
+        
+        if expense.currency and expense.currency != user_currency:
+            converted_amount = convert_amount(expense.amount, expense.currency, user_currency)
+            
+            if user_currency == 'KHR':
+                initial_data['amount'] = int(converted_amount)
+            else:
+                initial_data['amount'] = round(converted_amount, 2)
+        
+        form = ExpenseForm(instance=expense, initial=initial_data)
+    
+    return render(request, 'expenses/expense_form.html', {
+        'form': form,
+        'title': 'Edit Expense'
+    })
 
 @login_required
 def expense_delete(request, pk):
@@ -146,7 +173,6 @@ def receipt_upload(request):
     if request.method == 'POST' and request.FILES.get('receipt_file'):
         uploaded_file = request.FILES['receipt_file']
         
-        # 1. SIMULATE OCR (Simulating the Starbucks Receipt)
         ocr_text = """
         STARBUCKS STORE #12345
         11/25/2024 09:12 AM
@@ -156,13 +182,11 @@ def receipt_upload(request):
         VISA ****1234
         """
         
-        # 2. PROCESS DATA
         extracted = _smart_extract(ocr_text, request.user)
         amount = extracted['amount'] or Decimal('0.00')
         merchant = extracted['merchant'] if extracted['merchant'] else "Unknown Receipt"
         
         with transaction.atomic():
-            # A. Create Expense
             expense = Expense.objects.create(
                 user=request.user,
                 category=extracted['category'],
@@ -174,7 +198,6 @@ def receipt_upload(request):
                 entry_method='receipt_scan'
             )
             
-            # B. Create Receipt (Using the model in expenses)
             Receipt.objects.create(
                 expense=expense,
                 file=uploaded_file,
@@ -182,7 +205,6 @@ def receipt_upload(request):
                 ocr_text=ocr_text
             )
             
-            # C. Create AI Extraction (Using the model in ai_services)
             ai_log_data = {
                 "detected_text": ocr_text.strip()[:50],
                 "extracted_fields": {"merchant": merchant, "amount": float(amount)}

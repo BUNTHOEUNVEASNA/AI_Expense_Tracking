@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
-
-{% block title %}My Expenses - Expense Tracker{% endblock %}
+{% load user_formatting %} {% block title %}My Expenses - Expense Tracker{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -34,16 +33,21 @@
                         <tbody>
                             {% for expense in expenses %}
                             <tr>
-                                <td class="ps-4 text-nowrap">{{ expense.expense_date|date:"M d, Y" }}</td>
+                                <td class="ps-4 text-nowrap">
+                                    {{ expense.expense_date|user_date:request.user }}
+                                </td>
+                                
                                 <td>
                                     <span class="badge rounded-pill text-bg-light border" style="color: {{ expense.category.color }}; border-color: {{ expense.category.color }} !important;">
                                         {{ expense.category.icon }} {{ expense.category.category_name }}
                                     </span>
                                 </td>
+                                
                                 <td>
                                     <div class="fw-bold">{{ expense.merchant_name }}</div>
                                     <small class="text-muted">{{ expense.description|truncatechars:30 }}</small>
                                 </td>
+                                
                                 <td>
                                     {% if expense.payment_method %}
                                         <small class="text-secondary"><i class="far fa-credit-card"></i> {{ expense.payment_method }}</small>
@@ -51,9 +55,17 @@
                                         -
                                     {% endif %}
                                 </td>
+                                
                                 <td class="text-end fw-bold">
-                                    ${{ expense.amount }}
+                                    {% smart_convert expense.amount expense.currency request.user %}
+                                    
+                                    {% if expense.currency and expense.currency != request.user.preferences.currency %}
+                                        <div class="text-muted small fw-normal" style="font-size: 0.75rem;">
+                                            (Orig: {{ expense.amount }} {{ expense.currency }})
+                                        </div>
+                                    {% endif %}
                                 </td>
+                                
                                 <td class="text-end pe-4">
                                     <div class="btn-group">
                                         <a href="{% url 'expenses:update' expense.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit">

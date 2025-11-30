@@ -13,15 +13,12 @@ def generate_weekly_summary(user):
     today = timezone.now().date()
     start_week = today - timedelta(days=7)
     
-    # 1. Get expenses for this week
     expenses = Expense.objects.filter(user=user, expense_date__gte=start_week)
     total_spent = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
     
-    # 2. Category Breakdown
     cat_stats = expenses.values('category__category_name').annotate(total=Sum('amount'))
     breakdown = {item['category__category_name']: float(item['total']) for item in cat_stats}
     
-    # 3. Create the JSON Data
     insight_data = {
         "total_spent": float(total_spent),
         "category_breakdown": breakdown,
@@ -29,7 +26,6 @@ def generate_weekly_summary(user):
         "prediction_next_week": float(total_spent) * 1.1
     }
     
-    # 4. Save to DB
     AIInsight.objects.create(
         user=user,
         insight_type='weekly_summary',
@@ -61,7 +57,6 @@ def check_budget_alerts(user):
         if percentage >= budget.alert_threshold:
             message = f"⚠️ Budget Alert: You've used {int(percentage)}% of your {budget.category.category_name} budget!"
             
-            # Save to DB (History)
             data = {
                 "category": budget.category.category_name,
                 "budget_limit": float(budget.budget_limit),
@@ -69,8 +64,7 @@ def check_budget_alerts(user):
                 "percentage_used": round(float(percentage), 1)
             }
             
-            # Check if we already alerted today to avoid spam (Optional logic)
-            # For now, we overwrite or create new
+
             AIInsight.objects.create(
                 user=user,
                 insight_type='budget_alert',

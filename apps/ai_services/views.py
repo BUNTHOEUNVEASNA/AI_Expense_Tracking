@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -6,24 +7,33 @@ from .utils import generate_weekly_summary, check_budget_alerts
 
 @login_required
 def insight_list(request):
-    """View generated insights"""
+    """
+    View list of all AI-generated insights (Weekly Summaries & Alerts)
+    """
     insights = AIInsight.objects.filter(user=request.user).order_by('-generated_at')
     
-    # Convert JSON string back to Dict for the template
-    # (Or use a template filter, but this is explicit)
-    import json
     for item in insights:
         if isinstance(item.insight_data, str):
-            item.insight_data_dict = json.loads(item.insight_data)
+            try:
+                item.data_dict = json.loads(item.insight_data)
+            except json.JSONDecodeError:
+                item.data_dict = {}
         else:
-             item.insight_data_dict = item.insight_data
+            item.data_dict = item.insight_data or {}
 
     return render(request, 'ai_services/insight_list.html', {'insights': insights})
 
 @login_required
 def trigger_analysis(request):
-    """Button click to manually run AI analysis"""
+    """
+    Manually trigger the AI analysis (Button click)
+    """
     generate_weekly_summary(request.user)
-    check_budget_alerts(request.user)
-    messages.success(request, "AI Analysis complete! New insights generated.")
+    alerts = check_budget_alerts(request.user)
+    
+    if alerts:
+        messages.warning(request, f"Analysis Complete. Found {len(alerts)} budget alerts!")
+    else:
+        messages.success(request, "Analysis Complete. Weekly summary generated.")
+        
     return redirect('ai_services:list')

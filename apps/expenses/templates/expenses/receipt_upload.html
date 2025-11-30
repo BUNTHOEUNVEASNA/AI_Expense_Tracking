@@ -3,77 +3,70 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0"><i class="fas fa-camera"></i> Upload Receipt</h4>
+        <div class="col-md-8 col-lg-7">
+            
+            <ul class="nav nav-pills nav-fill mb-4 gap-2 shadow-sm p-1 bg-white rounded-pill">
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:create' %}"><i class="fas fa-keyboard"></i> Manual</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active rounded-pill" href="#"><i class="fas fa-camera"></i> Receipt</a>
+                </li>
+                
+                {% if user.preferences.voice_input_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:voice_input' %}"><i class="fas fa-microphone"></i> Voice</a>
+                </li>
+                {% endif %}
+
+                {% if user.preferences.ai_suggestions_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:text_parse' %}"><i class="fas fa-magic"></i> AI Text</a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-header bg-info text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-camera"></i> Scan Receipt</h5>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">
-                        Upload a photo of your receipt. Our AI will automatically extract the merchant, date, items, and total amount.
+                <div class="card-body p-4 text-center">
+                    <p class="text-muted mb-4">
+                        Take a photo of your receipt. Our AI will extract the merchant, date, and total amount.
                     </p>
 
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         
-                        <div class="mb-4 text-center">
-                            <div class="upload-area p-5 border rounded bg-light dashed-border">
-                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <br>
-                                <label for="receipt_file" class="form-label h5 text-primary" style="cursor: pointer;">
-                                    Click to Select Receipt Image
-                                </label>
-                                <p class="small text-muted">Supported formats: JPG, PNG, JPEG</p>
-                                
-                                <input type="file" 
-                                       class="form-control mt-2" 
-                                       id="receipt_file" 
-                                       name="receipt_file" 
-                                       accept="image/*" 
-                                       required>
-                            </div>
+                        <div class="upload-area p-5 border rounded-3 bg-light dashed-border mb-4 position-relative">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-info mb-3"></i>
+                            <br>
+                            <label for="receipt_file" class="stretched-link h5 text-dark" style="cursor: pointer;">
+                                Choose Image File
+                            </label>
+                            <p class="small text-muted mb-0">JPG, PNG supported</p>
+                            <input type="file" class="form-control mt-3" id="receipt_file" name="receipt_file" accept="image/*" required>
                         </div>
 
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-magic"></i> Process Receipt with AI
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-info text-white btn-lg shadow-sm">
+                                <i class="fas fa-magic"></i> Process Receipt
                             </button>
-                            <a href="{% url 'expenses:list' %}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="alert alert-info mt-3 shadow-sm">
-                <div class="d-flex">
-                    <div class="me-3">
-                        <i class="fas fa-robot fa-2x"></i>
-                    </div>
-                    <div>
-                        <strong>Simulation Mode Active (Week 5):</strong><br>
-                        Uploading <em>any</em> image will trigger the <strong>Starbucks Receipt Simulation</strong>.
-                        <ul class="mb-0 ps-3 mt-1">
-                            <li><strong>Merchant:</strong> Starbucks Store #12345</li>
-                            <li><strong>Date:</strong> 2024-11-25</li>
-                            <li><strong>Amount:</strong> $12.45</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="alert alert-light border mt-3 small shadow-sm">
+                <i class="fas fa-info-circle text-info"></i> 
+                <strong>Note:</strong> Make sure the image is clear and well-lit for best results.
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .dashed-border {
-        border: 2px dashed #dee2e6 !important;
-        transition: all 0.3s ease;
-    }
-    .dashed-border:hover {
-        border-color: #0d6efd !important;
-        background-color: #f8f9fa !important;
-    }
+    .dashed-border { border: 2px dashed #dee2e6; transition: 0.3s; }
+    .dashed-border:hover { border-color: #0dcaf0; background: #f0faff; }
 </style>
 {% endblock %}

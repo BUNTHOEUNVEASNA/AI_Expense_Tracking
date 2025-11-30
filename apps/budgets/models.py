@@ -15,6 +15,7 @@ class Budget(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='budgets')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='budgets')
     budget_limit = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
     period_type = models.CharField(max_length=10, choices=PERIOD_TYPES, default='monthly')
     start_date = models.DateField()
     end_date = models.DateField()

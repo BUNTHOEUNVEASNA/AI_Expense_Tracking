@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-edit"></i> Edit Category
+                        {% else %}
+                            <i class="fas fa-plus-circle"></i> Add New Category
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Category Name</label>
+                            {{ form.category_name }}
+                            {% if form.category_name.errors %}
+                                <div class="text-danger small">{{ form.category_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Icon (Emoji)</label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           name="icon" 
+                                           id="id_icon" 
+                                           class="form-control text-center fs-4" 
+                                           value="{{ form.icon.value|default:'📦' }}" 
+                                           readonly 
+                                           style="cursor: pointer; background-color: #fff;"
+                                           data-bs-toggle="modal" 
+                                           data-bs-target="#emojiModal">
+                                    
+                                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#emojiModal">
+                                        Select
+                                    </button>
+                                </div>
+                                <div class="form-text small">Click to select an icon</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Color Code</label>
+                                <div class="input-group">
+                                    {{ form.color }}
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           id="color_visualizer" 
+                                           value="{{ form.color.value|default:'#A8D8EA' }}" 
+                                           title="Choose your color"
+                                           onchange="document.getElementById('id_color').value = this.value">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'categories:list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save"></i> Save Category
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="emojiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pick an Icon</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-pills mb-3 justify-content-center small" id="emojiTabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-general">General</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-food">Food</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-transport">Transport</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-bills">Bills</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fun">Fun</button></li>
+                </ul>
+
+                <div class="tab-content text-center" id="emojiTabsContent">
+                    <div class="tab-pane fade show active" id="tab-general">
+                        <div class="d-flex flex-wrap justify-content-center gap-2" id="emoji-grid-general"></div>
+                    </div>
+                    <div class="tab-pane fade" id="tab-food">
+                        <div class="d-flex flex-wrap justify-content-center gap-2" id="emoji-grid-food"></div>
+                    </div>
+                    <div class="tab-pane fade" id="tab-transport">
+                        <div class="d-flex flex-wrap justify-content-center gap-2" id="emoji-grid-transport"></div>
+                    </div>
+                    <div class="tab-pane fade" id="tab-bills">
+                        <div class="d-flex flex-wrap justify-content-center gap-2" id="emoji-grid-bills"></div>
+                    </div>
+                    <div class="tab-pane fade" id="tab-fun">
+                        <div class="d-flex flex-wrap justify-content-center gap-2" id="emoji-grid-fun"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // 1. SYNC COLOR PICKER
+        // When typing in the text field, update the visual picker
+        const textInput = document.getElementById('id_color');
+        const colorPicker = document.getElementById('color_visualizer');
+        
+        if(textInput && colorPicker) {
+            textInput.addEventListener('input', function() {
+                colorPicker.value = this.value;
+            });
+        }
+
+        // 2. DEFINE EMOJI LISTS
+        const emojis = {
+            'general': ['📦', '💰', '💳', '🏦', '💵', '🪙', '💎', '🛒', '🛍️', '🎁', '🐶', '🐱', '👶', '🔧', '🧹'],
+            'food': ['🍔', '🍕', '🌭', '🍟', '🌮', '🥗', '🍣', '🍱', '🍜', '🍝', '🍞', '🥩', '🍗', '🍎', '🍌', '🍇', '☕', '🍵', '🥤', '🍺', '🍷', '🍹'],
+            'transport': ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🛵', '🏍️', '🚲', '🛴', '✈️', '🚀', '🚁', '🚂', '🚆', '⛽'],
+            'bills': ['💡', '🔌', '🕯️', '🚰', '🚽', '🚿', '🛀', '📱', '📞', '📠', '💻', '🖥️', '🖨️', '📡', '🏠', '🏥', '💊', '🩺', '🎓'],
+            'fun': ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🎮', '🕹️', '🎲', '🎨', '🎬', '🎤', '🎧', '🎷', '🎸', '🎹', '🎺', '🎻', '🎫', '🎪']
+        };
+
+        // 3. GENERATE BUTTONS
+        const modal = new bootstrap.Modal(document.getElementById('emojiModal'));
+        
+        function createEmojiButton(emoji) {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-light btn-lg p-2 m-1 shadow-sm border';
+            btn.style.fontSize = '1.5rem';
+            btn.innerText = emoji;
+            btn.type = 'button';
+            
+            btn.onclick = function() {
+                // Set value to input
+                document.getElementById('id_icon').value = emoji;
+                // Close modal
+                modal.hide();
+            };
+            return btn;
+        }
+
+        // Loop through categories and fill grids
+        for (const [category, list] of Object.entries(emojis)) {
+            const container = document.getElementById(`emoji-grid-${category}`);
+            if (container) {
+                list.forEach(emoji => {
+                    container.appendChild(createEmojiButton(emoji));
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

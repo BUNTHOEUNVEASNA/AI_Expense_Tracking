@@ -4,40 +4,55 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8 col-lg-7">
             
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-pills nav-fill mb-3 gap-2">
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:create' %}"><i class="fas fa-keyboard"></i> Manual</a></li>
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:receipt_upload' %}"><i class="fas fa-camera"></i> Receipt AI</a></li>
-                <li class="nav-item"><a class="nav-link active" href="#"><i class="fas fa-microphone"></i> Voice</a></li>
-                <li class="nav-item"><a class="nav-link bg-white border" href="{% url 'expenses:text_parse' %}"><i class="fas fa-magic"></i> AI Text</a></li>
+            <ul class="nav nav-pills nav-fill mb-4 gap-2 shadow-sm p-1 bg-white rounded-pill">
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:create' %}"><i class="fas fa-keyboard"></i> Manual</a>
+                </li>
+                {% if user.preferences.ai_suggestions_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:receipt_upload' %}"><i class="fas fa-camera"></i> Receipt</a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link active rounded-pill" href="#"><i class="fas fa-microphone"></i> Voice</a>
+                </li>
+                {% if user.preferences.ai_suggestions_enabled %}
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill" href="{% url 'expenses:text_parse' %}"><i class="fas fa-magic"></i> AI Text</a>
+                </li>
+                {% endif %}
             </ul>
 
-            <div class="card shadow">
+            <div class="card shadow-lg border-0 rounded-3">
                 <div class="card-body text-center p-5">
-                    <div class="mb-4">
-                        <div id="listening-indicator" class="spinner-grow text-danger d-none" role="status">
-                            <span class="visually-hidden">Listening...</span>
+                    
+                    <div style="height: 120px;" class="d-flex align-items-center justify-content-center mb-3">
+                        <div id="mic-container" class="rounded-circle bg-light p-4 transition-all">
+                            <i id="mic-icon" class="fas fa-microphone-alt text-secondary fa-4x"></i>
                         </div>
-                        <i id="mic-icon" class="fas fa-microphone-alt text-secondary fa-5x mb-3"></i>
-                        <h4>Voice Entry</h4>
-                        <p class="text-muted">Tap the mic and say something like:<br><em>"Spent 15 dollars at Starbucks for coffee"</em></p>
                     </div>
+
+                    <h4 class="fw-bold">Voice Entry</h4>
+                    <p class="text-muted mb-4">
+                        Tap the mic and say: <br>
+                        <span class="fst-italic text-primary">"Spent 15 dollars at Starbucks for coffee"</span>
+                    </p>
 
                     <form method="post" id="voiceForm">
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            <textarea name="voice_text" id="voice_text" class="form-control" rows="3" placeholder="Your speech will appear here..."></textarea>
+                            <textarea name="voice_text" id="voice_text" class="form-control form-control-lg bg-light border-0 text-center" rows="2" placeholder="Listening..."></textarea>
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-outline-danger btn-lg" onclick="toggleRecording()">
-                                <i class="fas fa-microphone"></i> <span id="btn-text">Start Recording</span>
+                            <button type="button" class="btn btn-outline-danger btn-lg rounded-pill" onclick="toggleRecording()">
+                                <i class="fas fa-circle"></i> <span id="btn-text">Start Recording</span>
                             </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check"></i> Process Text
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-sm">
+                                <i class="fas fa-check"></i> Save Expense
                             </button>
                         </div>
                     </form>
@@ -48,7 +63,6 @@
 </div>
 
 <script>
-    // Simple Web Speech API Implementation
     let recognition;
     let isRecording = false;
 
@@ -59,15 +73,15 @@
         recognition.lang = 'en-US';
 
         recognition.onstart = function() {
-            document.getElementById('listening-indicator').classList.remove('d-none');
-            document.getElementById('mic-icon').classList.replace('text-secondary', 'text-danger');
+            document.getElementById('mic-icon').className = 'fas fa-microphone-alt text-white fa-4x';
+            document.getElementById('mic-container').className = 'rounded-circle bg-danger p-4 shadow-lg'; // Red Pulse
             document.getElementById('btn-text').innerText = "Stop Recording";
             isRecording = true;
         };
 
         recognition.onend = function() {
-            document.getElementById('listening-indicator').classList.add('d-none');
-            document.getElementById('mic-icon').classList.replace('text-danger', 'text-secondary');
+            document.getElementById('mic-icon').className = 'fas fa-microphone-alt text-secondary fa-4x';
+            document.getElementById('mic-container').className = 'rounded-circle bg-light p-4';
             document.getElementById('btn-text').innerText = "Start Recording";
             isRecording = false;
         };
@@ -80,15 +94,12 @@
             document.getElementById('voice_text').value = transcript;
         };
     } else {
-        alert("Voice input is not supported in this browser. Please use Chrome.");
+        alert("Voice input requires Google Chrome.");
     }
 
     function toggleRecording() {
-        if (isRecording) {
-            recognition.stop();
-        } else {
-            recognition.start();
-        }
+        if (isRecording) recognition.stop();
+        else recognition.start();
     }
 </script>
 {% endblock %}

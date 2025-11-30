@@ -98,13 +98,10 @@ def expense_create(request):
             expense.user = request.user
             expense.save()
             
-            # 2. Check for Budget Alerts (Now that expense is saved)
             alerts = check_budget_alerts(request.user)
             for alert in alerts:
-                # 'warning' tag triggers the Red Popup in base.html
                 messages.warning(request, alert)
 
-            # 3. Success Message
             messages.success(request, 'Expense added successfully!')
             return redirect('expenses:list')
     else:
@@ -231,7 +228,6 @@ def voice_input(request):
 
             alerts = check_budget_alerts(request.user)
             for alert in alerts:
-                # Add as a 'warning' message so it stands out
                 messages.warning(request, alert)
 
         messages.success(request, "Voice command saved successfully.")
@@ -241,7 +237,6 @@ def voice_input(request):
 
 @login_required
 def text_parse(request):
-    """SCENARIO 5: Text -> NLP -> Insert Expense + AI Log"""
     if request.method == 'POST':
         raw_text = request.POST.get('raw_text', '')
         extracted = _smart_extract(raw_text, request.user)
@@ -268,7 +263,6 @@ def text_parse(request):
 
             alerts = check_budget_alerts(request.user)
             for alert in alerts:
-                # Add as a 'warning' message so it stands out
                 messages.warning(request, alert)
 
         messages.success(request, "Text parsed and expense saved.")

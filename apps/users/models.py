@@ -8,8 +8,6 @@ from django.dispatch import receiver
 
 ALL_TIMEZONES = sorted([(tz, tz) for tz in pytz.common_timezones])
 
-# Get all currencies (e.g., 'USD', 'KHR')
-# Format: [('USD', 'USD - US Dollar'), ('KHR', 'KHR - Riel'), ...]
 ALL_CURRENCIES = []
 for currency in pycountry.currencies:
     # Some currencies don't have a name, so we handle that safely
@@ -17,7 +15,6 @@ for currency in pycountry.currencies:
     label = f"{currency.alpha_3} - {name}"
     ALL_CURRENCIES.append((currency.alpha_3, label))
 
-# Sort currencies alphabetically
 ALL_CURRENCIES = sorted(ALL_CURRENCIES, key=lambda x: x[1])
 
 class User(AbstractUser):
@@ -42,10 +39,22 @@ class User(AbstractUser):
 
 class UserPreference(models.Model):
     """User settings and preferences"""
+    
+    # Date Format Options (Hardcoded because they are specific to your UI)
+    DATE_FORMAT_CHOICES = [
+        ('YYYY-MM-DD', 'YYYY-MM-DD (2024-11-29)'),
+        ('MM/DD/YYYY', 'MM/DD/YYYY (11/29/2024)'),
+        ('DD/MM/YYYY', 'DD/MM/YYYY (29/11/2024)'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
-    currency = models.CharField(max_length=3, default='USD')
-    date_format = models.CharField(max_length=20, default='MM/DD/YYYY')
-    timezone = models.CharField(max_length=50, default='UTC')
+    
+    # Use the Auto-Generated Lists here
+    currency = models.CharField(max_length=3, choices=ALL_CURRENCIES, default='USD')
+    timezone = models.CharField(max_length=50, choices=ALL_TIMEZONES, default='UTC')
+    
+    date_format = models.CharField(max_length=20, choices=DATE_FORMAT_CHOICES, default='YYYY-MM-DD')
+    
     ai_suggestions_enabled = models.BooleanField(default=True)
     voice_input_enabled = models.BooleanField(default=True)
     
@@ -54,19 +63,7 @@ class UserPreference(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - Preferences"
-    """User preferences and settings"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
-    currency = models.CharField(max_length=3, default='USD')
-    date_format = models.CharField(max_length=20, default='MM/DD/YYYY')
-    timezone = models.CharField(max_length=50, default='UTC')
-    ai_suggestions_enabled = models.BooleanField(default=True)
-    voice_input_enabled = models.BooleanField(default=True)
     
-    class Meta:
-        db_table = 'USER_PREFERENCE'
-    
-    def __str__(self):
-        return f"{self.user.email} - Preferences"
     
 @receiver(post_save, sender=User)
 def create_user_preference(sender, instance, created, **kwargs):

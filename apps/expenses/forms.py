@@ -1,7 +1,9 @@
+# apps/expenses/forms.py
+
 from django import forms
 from .models import Expense, Receipt
-from apps.categories.models import Category
-
+# Assuming 'apps.categories' is installed and its models are accessible
+from apps.categories.models import Category 
 
 class ExpenseForm(forms.ModelForm):
     """Form used for manual entry and for reviewing/editing OCR data."""
@@ -29,6 +31,7 @@ class ExpenseForm(forms.ModelForm):
         # Fallback to general queryset if filtering isn't strictly necessary or not possible
         elif self.instance.pk:
             self.fields['category'].queryset = Category.objects.filter(user=self.instance.user)
+
 
 class ReceiptUploadForm(forms.ModelForm):
     """Form for uploading a receipt image."""

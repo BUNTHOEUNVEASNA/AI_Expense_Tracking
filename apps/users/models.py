@@ -22,7 +22,8 @@ class User(AbstractUser):
     Simple user model for personal expense tracking.
     No roles, no permissions - just basic user info.
     """
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, max_length=191)
+
     full_name = models.CharField(max_length=100)
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

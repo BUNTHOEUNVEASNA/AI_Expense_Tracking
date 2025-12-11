@@ -49,7 +49,8 @@ def dashboard(request):
             if not last_summary_exists:
                 generate_weekly_summary(request.user)
 
-        target_curr = 'USD'
+        target_curr = getattr(request.user, 'preferences', None) and request.user.preferences.currency or 'USD'
+
         if hasattr(request.user, 'preferences'):
             target_curr = request.user.preferences.currency
 
@@ -64,21 +65,30 @@ def dashboard(request):
 
         for exp in expenses:
             src_curr = exp.currency if hasattr(exp, 'currency') and exp.currency else 'USD'
-            
             converted_val = float(convert_amount(exp.amount, src_curr, target_curr))
             total_spent += converted_val
-            
+
+        # Safely handle missing category
+        if exp.category:
             cat_name = exp.category.category_name
-            if cat_name not in category_totals:
-                category_totals[cat_name] = {
-                    'name': cat_name,
-                    'icon': exp.category.icon,
-                    'color': exp.category.color,
-                    'total': 0.0,
-                    'count': 0
-                }
-            category_totals[cat_name]['total'] += converted_val
-            category_totals[cat_name]['count'] += 1
+            icon = exp.category.icon
+            color = exp.category.color
+        else:
+            cat_name = 'Uncategorized'
+            icon = 'fa-question-circle'  # or any default icon
+            color = '#6c757d'            # default gray color
+
+        if cat_name not in category_totals:
+            category_totals[cat_name] = {
+                'name': cat_name,
+                'icon': icon,
+                'color': color,
+                'total': 0.0,
+                'count': 0
+            }
+
+        category_totals[cat_name]['total'] += converted_val
+        category_totals[cat_name]['count'] += 1
 
         spending_by_category = sorted(category_totals.values(), key=lambda x: x['total'], reverse=True)[:5]
         expense_count = expenses.count()
@@ -139,7 +149,10 @@ def dashboard(request):
     except Exception as e:
         print(f"ERROR: {e}")
         print(traceback.format_exc())
-        context = {'error_message': str(e)}
+        context = {
+            'error_message': str(e),
+            'target_currency': getattr(request.user, 'preferences', None) and request.user.preferences.currency or 'USD'
+        }
 
     return render(request, 'core/dashboard.html', context)
 

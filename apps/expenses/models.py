@@ -1,6 +1,9 @@
+# apps/expenses/models.py
+
 from django.db import models
 from django.conf import settings
-from apps.categories.models import Category
+# Assuming 'apps.categories' is a separate app you have installed
+from apps.categories.models import Category 
 
 
 class Expense(models.Model):
@@ -12,15 +15,23 @@ class Expense(models.Model):
         ('text_parsing', 'Text Parsing'),
     ]
     
+    # Relationships
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='expenses')
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='expenses')
+    # Use SET_NULL for category so historical data isn't lost if a category is deleted
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL) 
+    
+    # Financial Data
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='USD')
+    
+    # Metadata
     expense_date = models.DateField()
     merchant_name = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
     payment_method = models.CharField(max_length=50, blank=True)
     entry_method = models.CharField(max_length=20, choices=ENTRY_METHODS, default='manual')
+    
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -33,9 +44,7 @@ class Expense(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.merchant_name} - ${self.amount}"
-
-
+        return f"{self.merchant_name} - ${self.amount} on {self.expense_date}"
 
 class Receipt(models.Model):
     """Receipt attachments for expenses"""

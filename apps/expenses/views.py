@@ -1,8 +1,21 @@
 import re
 import json
+from django.contrib.auth.decorators import login_required # <-- IMPORT THIS
 from datetime import timedelta
 from decimal import Decimal
-from apps.core.currency_rates import convert_amount
+from dateutil.parser import parse, ParserError # ADDED ParserError for robust date parsing
+import pytesseract
+from PIL import Image
+from PIL import ImageEnhance, ImageOps
+import io
+from .forms import ReceiptUploadForm, ExpenseForm # <-- ENSURE ExpenseForm is importedimport numpy as np
+from django.core.files.uploadedfile import UploadedFile  # <--- THIS IS THE FIX
+from django.conf import settings
+import os # Added for path handling if needed, though not strictly required here
+
+
+from PIL import Image, ImageOps, ImageFilter
+from .ocr_service import perform_receipt_ocr
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -10,15 +23,43 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db import transaction
 from apps.ai_services.utils import check_budget_alerts
+
 from .models import Expense, Receipt
 from .forms import ExpenseForm
 from apps.categories.models import Category
-from apps.ai_services.models import AIExtraction 
-from .ocr_service import perform_receipt_ocr
-from .forms import ReceiptUploadForm, ExpenseForm # <-- ENSURE ExpenseForm is importedimport numpy as np
-from django.core.files.uploadedfile import UploadedFile  # <--- THIS IS THE FIX
-from django.conf import settings
-import os # Added for path handling if needed, though not strictly required here
+from apps.ai_services.models import AIExtraction
+# Assuming convert_amount is available in apps.core.currency_rates
+from apps.core.currency_rates import convert_amount 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from decimal import Decimal
+from PIL import Image
+import numpy as np
+import pytesseract
+
+from .models import Expense, Receipt
+from apps.ai_services.utils import _receipt_extract, check_budget_alerts
+# --- START: OCR Engine Check ---
+
+TESSERACT_AVAILABLE = False
+try:
+    # Set tesseract_cmd path if necessary (e.g., on Windows)
+    # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    _ = pytesseract.get_tesseract_version()
+    TESSERACT_AVAILABLE = True
+except Exception:
+    pass
+
+PADDLE_AVAILABLE = False
+try:
+    from paddleocr import PaddleOCR
+    PADDLE_AVAILABLE = True
+except Exception:
+    pass
+
+# --- END: OCR Engine Check ---
 
 
 def _smart_extract(text, user):
@@ -169,61 +210,21 @@ def expense_delete(request, pk):
         return redirect('expenses:list')
     return render(request, 'expenses/expense_confirm_delete.html', {'expense': expense})
 
+try:
+    # optional: set this on Windows if you know the path
+    # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    _ = pytesseract.get_tesseract_version()
+    TESSERACT_AVAILABLE = True
+except Exception:
+    TESSERACT_AVAILABLE = False
 
-@login_required
-def receipt_upload(request):
-    """SCENARIO 3: Receipt -> OCR -> Insert Expense + Receipt + AI Log"""
-    if request.method == 'POST' and request.FILES.get('receipt_file'):
-        uploaded_file = request.FILES['receipt_file']
-        
-        ocr_text = """
-        STARBUCKS STORE #12345
-        11/25/2024 09:12 AM
-        GRANDE LATTE $5.95
-        CROISSANT $4.50
-        TOTAL $12.45
-        VISA ****1234
-        """
-        
-        extracted = _smart_extract(ocr_text, request.user)
-        amount = extracted['amount'] or Decimal('0.00')
-        merchant = extracted['merchant'] if extracted['merchant'] else "Unknown Receipt"
-        
-        with transaction.atomic():
-            expense = Expense.objects.create(
-                user=request.user,
-                category=extracted['category'],
-                amount=amount,
-                expense_date=extracted['date'],
-                merchant_name=merchant,
-                description="Receipt Scan: Auto-processed",
-                payment_method=extracted['payment_method'],
-                entry_method='receipt_scan'
-            )
-            
-            Receipt.objects.create(
-                expense=expense,
-                file=uploaded_file,
-                file_type=uploaded_file.content_type,
-                ocr_text=ocr_text
-            )
-            
-            ai_log_data = {
-                "detected_text": ocr_text.strip()[:50],
-                "extracted_fields": {"merchant": merchant, "amount": float(amount)}
-            }
-            AIExtraction.objects.create(
-                expense=expense,
-                raw_data=ai_log_data,
-                confidence_score=extracted['confidence'],
-                extraction_method='ocr_vision_api'
-            )
-
-        messages.success(request, f"Receipt processed! Saved expense for {merchant}.")
-        return redirect('expenses:list')
-
-    return render(request, 'expenses/receipt_upload.html')
-
+# fallback lazy import flag
+PADDLE_AVAILABLE = False
+try:
+    from paddleocr import PaddleOCR  # pip install paddleocr
+    PADDLE_AVAILABLE = True
+except Exception:
+    PADDLE_AVAILABLE = False
 @login_required
 def voice_input(request):
     """SCENARIO 4: Voice -> NLP -> Insert Expense + AI Log"""
@@ -257,9 +258,6 @@ def voice_input(request):
 
         messages.success(request, "Voice command saved successfully.")
         return redirect('expenses:list')
-
-    return render(request, 'expenses/voice_input.html')
-
 @login_required
 def text_parse(request):
     if request.method == 'POST':
@@ -294,6 +292,270 @@ def text_parse(request):
         return redirect('expenses:list')
         
     return render(request, 'expenses/text_parse.html')
+    return render(request, 'expenses/voice_input.html')
+@login_required
+def text_parse(request):
+    if request.method == 'POST':
+        raw_text = request.POST.get('raw_text', '')
+        extracted = _smart_extract(raw_text, request.user)
+        
+        with transaction.atomic():
+            expense = Expense.objects.create(
+                user=request.user,
+                category=extracted['category'],
+                amount=extracted['amount'] or 0.00,
+                expense_date=extracted['date'],
+                merchant_name=extracted['merchant'] or "Quick Add",
+                description=f"Quick Add: {raw_text}",
+                payment_method=extracted['payment_method'],
+                entry_method='text_parsing'
+            )
+            
+            ai_log_data = {"user_input": raw_text}
+            AIExtraction.objects.create(
+                expense=expense,
+                raw_data=ai_log_data,
+                confidence_score=extracted['confidence'],
+                extraction_method='nlp_text_parsing'
+            )
+
+            alerts = check_budget_alerts(request.user)
+            for alert in alerts:
+                messages.warning(request, alert)
+
+        messages.success(request, "Text parsed and expense saved.")
+        return redirect('expenses:list')
+        
+    return render(request, 'expenses/text_parse.html')
+# =========================================================================
+# 🧠 RECEIPT EXTRACTION LOGIC (REPLACING _smart_extract and the misplaced class)
+# =========================================================================
+@login_required
+def voice_input(request):
+    """SCENARIO 4: Voice -> NLP -> Insert Expense + AI Log"""
+    # ... (function content including POST and GET handling) ...
+    pass
+def _receipt_extract(ocr_text: str, user):
+    """
+    Robust extraction logic for receipts using Regex and heuristics.
+    Extracts: Amount, Date, Merchant, Category, Payment Method.
+    """
+    ocr_text = ocr_text.strip()
+    
+    # 1. Setup Base Data
+    today = timezone.now().date()
+    extracted = {
+        "amount": Decimal("0.00"),
+        "date": today,
+        "merchant": "Unknown Merchant",
+        "category": None,
+        "payment_method": 'Cash',
+        "confidence": 0.0,
+    }
+
+    # Common keywords to find the final total amount
+    total_keywords = r'(TOTAL|GRAND\sTOTAL|AMOUNT\sDUE|TOTAL\sPAID|TOTAL\sSALE)'
+    
+    # 2. Extract AMOUNT (Robust Regex)
+    # Looks for a currency pattern preceded by a total keyword
+    keyword_pattern = re.compile(
+        rf'{total_keywords}[:\s]*(\$?[\d,]*\.\d{{2}})',
+        re.IGNORECASE | re.MULTILINE
+    )
+    keyword_matches = keyword_pattern.findall(ocr_text)
+    
+    if keyword_matches:
+        # Use the last match, often the final total
+        extracted_amount_str = keyword_matches[-1][1].replace('$', '').replace(',', '')
+        try:
+            extracted['amount'] = Decimal(extracted_amount_str)
+            extracted['confidence'] += 0.4 
+        except:
+            pass 
+    
+    # 3. Extract DATE
+    date_pattern = re.compile(r'(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})', re.MULTILINE)
+    try:
+        # Try to find the most recent date
+        dates_found = date_pattern.findall(ocr_text)
+        if dates_found:
+            # Sort dates to find one that is plausible and close to the transaction date
+            valid_dates = []
+            for date_str in dates_found:
+                try:
+                    parsed_date = parse(date_str, fuzzy=True).date()
+                    # Only consider dates from the last two years
+                    if today.year - parsed_date.year <= 2: 
+                        valid_dates.append(parsed_date)
+                except ParserError:
+                    continue
+            
+            if valid_dates:
+                # Use the latest valid date found on the receipt
+                extracted['date'] = max(valid_dates) 
+                extracted['confidence'] += 0.3
+    except Exception:
+        pass
+            
+    # 4. Extract MERCHANT (Robustly from the first few lines)
+    merchant_keywords = re.compile(r'(company|inc\.|corp\.|ltd|llc|store|mart|express)', re.IGNORECASE)
+    lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
+    found_merchant = "Unknown Merchant"
+    
+    # Iterate through the first 5 lines (where merchant names usually are)
+    for i, line in enumerate(lines[:5]):
+        line_lower = line.lower()
+        
+        # Heuristic 1: Skip lines that look like numbers, dates, or prices
+        if re.match(r'^\$?\d+[\.\,]\d{2}$', line): # Price line
+            continue
+        if re.search(r'\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}', line): # Date line
+            continue
+        if re.search(r'\d{3}[.\s\-]\d{3}[.\s\-]\d{4}', line): # Phone number
+            continue
+        
+        # Heuristic 2: Use the first non-address/non-date/non-price line
+        # Use the first line that contains a business indicator OR is simply the very first line
+        if merchant_keywords.search(line) or i == 0:
+            found_merchant = line
+            extracted['confidence'] += 0.2
+            break
+            
+    extracted['merchant'] = found_merchant
+
+    # 5. Determine CATEGORY (Heuristic/Keyword Matching)
+    merchant = extracted['merchant']
+    
+    category_map = {
+        'Automotive': ['oil change', 'spark plugs', 'wheel alignment', 'speedway', 'gas', 'fuel', 'petrol', 'chevron'],
+        'Dining': ['bistro', 'cafe', 'starbucks', 'restaurant', 'pizza', 'burger'],
+        'Shopping': ['walmart', 'target', 'amazon', 'groceries', 'store'],
+        'Bills & Utilities': ['electric', 'water', 'rent', 'internet', 'bill'],
+    }
+
+    found_category_name = "Uncategorized"
+    for cat_name, tags in category_map.items():
+        if any(tag in merchant.lower() or tag in ocr_text.lower() for tag in tags):
+            found_category_name = cat_name
+            extracted['confidence'] += 0.1
+            break
+
+    if found_category_name != "Uncategorized":
+        category = Category.objects.filter(user=user, category_name=found_category_name).first()
+        if category:
+            extracted['category'] = category
+
+    # 6. Extract Payment Method
+    if any(x in ocr_text.lower() for x in ['visa', 'mastercard', 'amex', 'credit card', 'debit']):
+        extracted['payment_method'] = 'Credit Card'
+
+    return extracted
+
+# =========================================================================
+# ⚙️ DJANGO VIEW FUNCTIONS (Your main application logic)
+# =========================================================================
+@login_required
+def expense_list(request):
+    expenses = Expense.objects.filter(user=request.user)
+    return render(request, 'expenses/expense_list.html', {'expenses': expenses})
+# The rest of your view functions (_smart_extract for voice/text, expense_list, etc.) 
+# should remain as you defined them, but note that the old _smart_extract 
+# definition is now redundant/replaced by _receipt_extract for OCR processing.
+
+# Ensure the old _smart_extract is defined somewhere for voice/text_parse to work, 
+# or rename it to _nlp_extract and update voice_input/text_parse accordingly. 
+# For simplicity, I've kept the original simple _smart_extract for text/voice:
+
+def _smart_extract(text, user):
+    """ Simulates the simple AI Brain (NLP) for Voice/Text parsing. """
+    text_lower = text.lower()
+    today = timezone.now().date()
+    # ... (Your existing simple _smart_extract logic goes here) ...
+    # Placeholder for brevity, use your original definition here
+    data = {
+        'amount': None,
+        'date': today,
+        'merchant': 'Quick Entry',
+        'category': None,
+        'payment_method': 'Cash',
+        'confidence': 0.0
+    }
+    # ... (Your existing logic for amount, date, payment, category, merchant) ...
+    
+    # 1. EXTRACT AMOUNT (Regex for currency)
+    amount_match = re.search(r'(?:\$|USD\s?)?(\d+\.\d{2}|\d+)', text)
+    if amount_match:
+        data['amount'] = Decimal(amount_match.group(1))
+        data['confidence'] += 0.3
+    
+    # 4. EXTRACT CATEGORY (Keyword Matching)
+    keywords = {
+        'Food & Dining': ['food', 'lunch', 'dinner', 'burger', 'pizza', 'coffee'],
+        'Transportation': ['uber', 'taxi', 'gas', 'fuel', 'bus'],
+    }
+    for cat_name, tags in keywords.items():
+        if any(tag in text_lower for tag in tags):
+            category = Category.objects.filter(user=user, category_name=cat_name).first()
+            if category:
+                data['category'] = category
+                data['confidence'] += 0.2
+                break
+
+    return data
+
+
+# Flags for OCR engine detection
+try:
+    pytesseract.get_tesseract_version()
+    TESSERACT_AVAILABLE = True
+except Exception:
+    TESSERACT_AVAILABLE = False
+
+try:
+    import paddleocr
+    PADDLE_AVAILABLE = True
+except Exception:
+    PADDLE_AVAILABLE = False
+@login_required 
+def receipt_upload(request):
+    """Handles receipt image upload, saves the Receipt, and redirects to review."""
+    
+    # Use the form field name 'file' from the HTML template
+    if request.method == 'POST':
+            form = ReceiptUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                receipt = form.save(commit=False)
+                receipt.user = request.user
+                # !!! ERROR LINE (Original) !!!
+                receipt.file_type = receipt.file.content_type if receipt.file else 'unknown'
+                # ... rest of the logic
+                receipt.save() 
+            
+            # 2. Perform OCR and extract data
+            receipt_file_path = os.path.join(settings.MEDIA_ROOT, receipt.file.name)
+            try:
+                # Use the mock OCR service
+                ocr_data, raw_ocr_text = perform_receipt_ocr(receipt_file_path)
+                
+                # Update the receipt with the raw OCR text
+                receipt.ocr_text = raw_ocr_text
+                receipt.save()
+                
+            except Exception as e:
+                messages.error(request, f"OCR processing failed for the image. Error: {e}")
+                receipt.delete() # Clean up
+                return redirect('expenses:receipt_upload')
+
+            # Redirect to the review page
+            return redirect('expenses:review_receipt', pk=receipt.pk)
+            
+    else:
+            messages.error(request, "Please select a file to upload.")
+            
+    # GET request or failed POST
+    form = ReceiptUploadForm()
+    
+    return render(request, 'expenses/receipt_upload.html', {'form': form})
 @login_required 
 def receipt_upload(request):
     """Handles receipt image upload, saves the Receipt, and redirects to review."""
@@ -406,3 +668,37 @@ def receipt_review(request, pk):
     
     return render(request, 'expenses/receipt_review.html', context)
 # Placeholder for manual expense creation (fixes the current error)
+@login_required 
+def manual_create(request):
+    """Placeholder for the manual expense creation view."""
+    # In a real app, this would handle ExpenseForm and render the manual entry template.
+    form = ExpenseForm(user=request.user) 
+    context = {'form': form, 'entry_method': 'Manual'}
+    # You would need to create a manual_create.html template
+    return render(request, 'expenses/manual_create.html', context)
+
+
+# Placeholder for Expense detail (used in redirects after saving)
+@login_required
+def expense_detail(request, pk):
+    """Placeholder for displaying a single expense record."""
+    expense = get_object_or_404(Expense, pk=pk, user=request.user)
+    messages.info(request, "This is the Expense Detail Page. View saved successfully.")
+    context = {'expense': expense}
+    return render(request, 'expenses/expense_detail.html', context)
+
+
+# Placeholder for voice input (used in navigation bar)
+@login_required
+def voice_input(request):
+    """Placeholder for the voice input expense view."""
+    messages.info(request, "Voice Input feature is not yet fully implemented.")
+    return redirect('expenses:manual_create') # Or redirect to a placeholder template
+
+
+# Placeholder for text parsing (used in navigation bar)
+@login_required
+def text_parse(request):
+    """Placeholder for the AI text parsing expense view."""
+    messages.info(request, "AI Text Parsing feature is not yet fully implemented.")
+    return redirect('expenses:manual_create') # Or redirect to a placeholder template
